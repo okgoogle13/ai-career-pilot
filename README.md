@@ -36,27 +36,49 @@ A serverless, Firebase-native Progressive Web Application (PWA) that automatical
 
 ### Project Structure
 ```
-├── public/                 # Frontend PWA files
-│   ├── index.html         # Main application interface
-│   ├── styles.css         # Application styling
-│   ├── script.js          # Frontend logic
-│   ├── manifest.json      # PWA manifest
-│   └── sw.js             # Service worker
-├── functions/             # Backend Genkit flows
-│   ├── main.py           # Main Genkit flows
-│   ├── requirements.txt   # Python dependencies
-│   └── kb/               # Knowledge base artifacts
-│       ├── pdf_themes_json.json
-│       ├── australian_sector_glossary.md
-│       ├── skill_taxonomy_community_services.md
-│       └── Gold-Standard-Knowledge-Artifact-1.md
-├── scripts/
-│   └── populate_profile.py # Initial user profile setup
+personal-ai-career-copilot/
+├── README.md                           # Project documentation
+├── .gitignore                         # Git ignore patterns
+├── firebase.json                      # Firebase configuration
+├── .firebaserc                       # Firebase project settings
+├── package.json                      # Node.js dependencies for deployment
+├── 
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml     # CI/CD pipeline
-├── firebase.json         # Firebase configuration
-└── README.md
+│       └── deploy.yml                # GitHub Actions CI/CD workflow
+├── 
+├── functions/                        # Firebase Cloud Functions (Genkit backend)
+│   ├── main.py                      # Primary Genkit flows and HTTP endpoints
+│   ├── requirements.txt             # Python dependencies
+│   ├── .env.example                # Environment variables template
+│   ├── config.py                   # Configuration management
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── scraper.py              # Job ad scraping utilities
+│   │   ├── firebase_client.py      # Firestore client wrapper
+│   │   └── pdf_generator.py        # PDF generation using themes
+│   ├── kb/                         # Knowledge Base directory
+│   │   ├── pdf_themes_json.json
+│   │   ├── australian_sector_glossary.md
+│   │   ├── skill_taxonomy_community_services.md
+│   │   ├── Gold-Standard-Knowledge-Artifact-1.md
+│   │   └── action_verbs_community_services.md
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_flows.py
+│       └── test_utils.py
+├── 
+├── public/                           # PWA Frontend (Firebase Hosting)
+│   ├── index.html                   # Main application page
+│   ├── manifest.json               # PWA manifest
+│   ├── sw.js                       # Service worker for PWA
+│   ├── favicon.ico
+│   ├── icons/                      # PWA icons
+│   │   ├── icon-192x192.png
+│   │   ├── icon-512x512.png
+│   │   └── apple-touch-icon.png
+│   ├── css/
+
 ```
 
 ## 🎯 Target Audience
