@@ -1,0 +1,53 @@
+# Firebase Cloud Functions Dependencies
+firebase-functions>=0.1.0
+firebase-admin>=6.0.0
+
+# Genkit Framework
+genkit>=0.5.0
+genkit[googleai]>=0.5.0
+genkit[pinecone]>=0.5.0
+
+# Google AI and Cloud Services
+google-generativeai>=0.3.0
+google-cloud-firestore>=2.11.0
+google-cloud-storage>=2.10.0
+google-cloud-scheduler>=2.13.0
+google-auth>=2.17.0
+
+# Web Scraping
+aiohttp>=3.8.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+lxml>=4.9.0
+
+# Document Processing
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+PyMuPDF>=1.23.0
+
+# Email and Calendar Integration
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+
+# PDF Generation
+reportlab>=4.0.0
+weasyprint>=59.0
+
+# Data Processing and Utilities
+python-dateutil>=2.8.0
+pytz>=2023.3
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Performance and Monitoring
+structlog>=23.1.0
+tenacity>=8.2.0

@@ -21,17 +21,20 @@ from firebase_admin import initialize_app, firestore
 import google.cloud.firestore
 
 # Google AI imports
-from genkit.models.googleai import gemini_1_5_pro
+from genkit.models.googleai import GoogleAIEmbedding, gemini_2_5_pro
+from genkit.vectorstores.pinecone import pinecone_retriever
 
 # Local utilities
-# Note: Ensure these files exist in the 'utils' directory
 from utils.scraper import JobAdScraper
 from utils.firebase_client import FirestoreClient
 from utils.pdf_generator import PDFGenerator
-from config import config
+from config import Config
 
 # Initialize Firebase Admin SDK
 initialize_app()
+
+# Initialize configuration
+config = Config()
 
 # Initialize Firestore client
 db = firestore.client()
@@ -52,7 +55,8 @@ def load_knowledge_base() -> str:
         "pdf_themes_json.json",
         "australian_sector_glossary.md", 
         "skill_taxonomy_community_services.md",
-        "Gold Standard Knowledge Artifact.md"
+        "Gold-Standard-Knowledge-Artifact-1.md",
+        "action_verbs_community_services.md"
     ]
     
     for filename in kb_files:
@@ -98,7 +102,7 @@ async def generate_application(request: Dict[str, Any]) -> Dict[str, Any]:
         # Step 3: Load knowledge base content
         kb_content = load_knowledge_base()
         
-        # Step 4: Construct structured prompt for Gemini
+        # Step 4: Construct structured prompt for Gemini 2.5 Pro
         prompt = _construct_generation_prompt(
             job_data=job_data,
             user_profile=user_profile,
@@ -107,20 +111,19 @@ async def generate_application(request: Dict[str, Any]) -> Dict[str, Any]:
             tone_of_voice=request["tone_of_voice"]
         )
         
-        # Step 5: Generate content using Gemini
-        model = gemini_1_5_pro
+        # Step 5: Generate content using Gemini 2.5 Pro
         response = await generate(
-            model=model,
+            model=gemini_2_5_pro,
             prompt=prompt,
             config={
-                "max_output_tokens": 8192,
+                "maxOutputTokens": 8192,
                 "temperature": 0.7,
-                "top_p": 0.9
+                "topP": 0.9
             }
         )
         
         # Step 6: Parse response and extract components
-        generated_content = _parse_generation_response(response.text())
+        generated_content = _parse_generation_response(response.text)
         
         # Step 7: Perform ATS analysis
         ats_analysis = _perform_ats_analysis(
@@ -137,9 +140,79 @@ async def generate_application(request: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Error in generate_application flow: {str(e)}")
         raise e
 
+@flow  
+async def job_scout() -> Dict[str, Any]:
+    """
+    Scheduled Genkit flow for monitoring Gmail and creating calendar events.
+    Scans for interview invitations and job opportunities.
+    
+    Returns:
+        {
+            "processedEmails": int,
+            "eventsCreated": int,
+            "status": str
+        }
+    """
+    
+    try:
+        # Initialize Gmail and Calendar API clients
+        from utils.gmail_client import GmailClient
+        from utils.calendar_client import CalendarClient
+        
+        gmail_client = GmailClient()
+        calendar_client = CalendarClient()
+        
+        # Scan for unread emails from job alert senders
+        target_senders = [
+            "noreply@s.seek.com.au",
+            "noreply@ethicaljobs.com.au", 
+            "donotreply@jora.com",
+            "support@careers.vic.gov.au"
+        ]
+        
+        processed_emails = 0
+        events_created = 0
+        
+        for sender in target_senders:
+            # Get unread emails from sender
+            emails = await gmail_client.get_unread_emails(sender)
+            
+            for email in emails:
+                # Parse email for job opportunities
+                job_opportunities = _extract_job_opportunities(email)
+                
+                # Create calendar reminders for each opportunity
+                for opportunity in job_opportunities:
+                    calendar_event = await calendar_client.create_reminder_event(
+                        title=f"Apply: {opportunity['job_title']} - {opportunity['company']}",
+                        description=f"Job URL: {opportunity['url']}\nDeadline: {opportunity.get('deadline', 'Not specified')}",
+                        reminder_days=2  # Remind 2 days before application deadline
+                    )
+                    
+                    if calendar_event:
+                        events_created += 1
+                
+                # Mark email as read
+                await gmail_client.mark_as_read(email['id'])
+                processed_emails += 1
+        
+        return {
+            "processedEmails": processed_emails,
+            "eventsCreated": events_created,
+            "status": "success"
+        }
+        
+    except Exception as e:
+        print(f"Error in job_scout flow: {str(e)}")
+        return {
+            "processedEmails": 0,
+            "eventsCreated": 0,  
+            "status": f"error: {str(e)}"
+        }
+
 def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str, 
                                theme_id: str, tone_of_voice: str) -> str:
-    """Construct the structured prompt for Gemini."""
+    """Construct the structured prompt for Gemini 2.5 Pro."""
     
     prompt = f"""
 You are an expert Australian community services career consultant with deep knowledge of the sector. Your task is to generate a tailored career document (resume, cover letter, or KSC response) and perform ATS analysis.
@@ -207,6 +280,7 @@ def _perform_ats_analysis(document_text: str, job_requirements: str) -> Dict[str
     """Perform ATS keyword analysis comparing document against job requirements."""
     
     import re
+    from collections import Counter
     
     # Extract keywords from job requirements
     job_keywords = set(re.findall(r'\b[a-zA-Z]{3,}\b', job_requirements.lower()))
@@ -227,10 +301,30 @@ def _perform_ats_analysis(document_text: str, job_requirements: str) -> Dict[str
     
     return {
         "keywordMatchPercent": round(match_percent, 1),
-        "matchedKeywords": matched_keywords[:20],
-        "missingKeywords": missing_keywords[:20],
+        "matchedKeywords": matched_keywords[:20],  # Limit for response size
+        "missingKeywords": missing_keywords[:20],   # Limit for response size
         "suggestions": suggestions
     }
+
+def _extract_job_opportunities(email: Dict) -> List[Dict[str, Any]]:
+    """Extract job opportunities from email content."""
+    
+    opportunities = []
+    subject = email.get('subject', '')
+    body = email.get('body', '')
+    
+    # Simple pattern matching for job opportunities
+    # This would be enhanced with more sophisticated NLP
+    if any(keyword in subject.lower() for keyword in ['job alert', 'new job', 'opportunities']):
+        # Extract basic information (this is a simplified implementation)
+        opportunities.append({
+            "job_title": subject,
+            "company": "Unknown",
+            "url": "mailto:example@example.com",  # Would extract actual URLs
+            "deadline": None
+        })
+    
+    return opportunities
 
 # HTTP endpoints for Firebase Functions
 @https_fn.on_request()
@@ -244,7 +338,9 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
         request_data = req.get_json()
         
         # Run the async flow
-        result = asyncio.run(generate_application(request_data))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(generate_application(request_data))
         
         return https_fn.Response(
             json.dumps(result),
@@ -259,3 +355,15 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
             headers={"Content-Type": "application/json"}
         )
 
+@scheduler_fn.on_schedule(schedule="0 */1 * * *")  # Run every hour
+def job_scout_scheduled(event: scheduler_fn.ScheduledEvent) -> None:
+    """Scheduled function for job scouting."""
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(job_scout())
+        print(f"Job scout completed: {result}")
+        
+    except Exception as e:
+        print(f"Job scout error: {str(e)}")
