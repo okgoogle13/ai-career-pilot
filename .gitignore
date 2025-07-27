@@ -1,0 +1,4 @@
+*.json
+client_secret*.json
+credentials.json
+clever-passage-*.json
