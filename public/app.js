@@ -243,7 +243,7 @@ async function startGeneration() {
       tone_of_voice: document.getElementById('tone-select').value,
   };
   try {
-    const response = await api.generateDocument(requestData);
+    const response = await api.generateDocument(requestData, appState.uploadedFile);
     if (APIStatus.isSuccess(response)) {
       appState.latestResult = APIStatus.getData(response);
       displayResults();
