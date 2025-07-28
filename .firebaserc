@@ -1,1 +1,6 @@
-
+{
+  "projects": {
+    "default": "your-firebase-project-id",
+    "production": "your-firebase-project-id"
+  }
+}

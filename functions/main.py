@@ -49,9 +49,15 @@ pdf_generator = PDFGenerator()
 gmail_client = GmailClient()
 calendar_client = CalendarClient()
 
-# Load knowledge base content
+# Global cache for knowledge base
+_kb_content = None
+
 def load_knowledge_base() -> str:
-    """Load all knowledge base artifacts into a single context string."""
+    """Load all knowledge base artifacts into a single context string with caching."""
+    global _kb_content
+    if _kb_content is not None:
+        return _kb_content
+
     kb_dir = Path(__file__).parent / "kb"
     kb_content = ""
     
@@ -71,7 +77,8 @@ def load_knowledge_base() -> str:
                 kb_content += f"\n\n=== {filename} ===\n"
                 kb_content += f.read()
     
-    return kb_content
+    _kb_content = kb_content
+    return _kb_content
 
 @flow
 async def generate_application(request: Dict[str, Any], resume_file: Optional[FileStorage] = None) -> Dict[str, Any]:
