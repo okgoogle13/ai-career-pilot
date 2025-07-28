@@ -30,13 +30,27 @@ class CareerAPI {
      * @param {Object} requestData - Document generation parameters
      * @returns {Promise<Object>} API response with generated document
      */
-    async generateDocument(requestData) {
+    async generateDocument(requestData, file = null) {
         const url = `${this.baseURL}${this.endpoints.generateDocument}`;
         
         try {
             console.log('Generating document with data:', requestData);
             
-            const response = await this.makeRequest('POST', url, requestData, {
+            let body;
+            const headers = { ...this.defaultHeaders };
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('requestData', JSON.stringify(requestData));
+                formData.append('resume', file);
+                body = formData;
+                delete headers['Content-Type']; // Let the browser set the correct content type with boundary
+            } else {
+                body = JSON.stringify(requestData);
+            }
+
+            const response = await this.makeRequest('POST', url, body, {
+                headers: headers,
                 timeout: this.requestTimeout
             });
 
@@ -126,7 +140,11 @@ class CareerAPI {
 
         // Add request body for POST/PUT requests
         if (data && ['POST', 'PUT', 'PATCH'].includes(config.method)) {
-            config.body = JSON.stringify(data);
+            if (data instanceof FormData) {
+                config.body = data;
+            } else {
+                config.body = JSON.stringify(data);
+            }
         }
 
         // Add timeout handling
