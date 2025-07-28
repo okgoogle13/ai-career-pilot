@@ -19,12 +19,13 @@ def clean_ai_response(response_text):
 def extract_text_from_pdf(pdf_path):
     """Extract text from PDF file"""
     try:
-        import PyPDF2
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
+        import pdfplumber
+        with pdfplumber.open(pdf_path) as pdf:
             text = ""
-            for page in reader.pages:
-                text += page.extract_text()
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
         return text
     except Exception as e:
         print(f"Error extracting text from PDF: {e}")

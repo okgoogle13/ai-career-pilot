@@ -21,7 +21,7 @@ from google.generativeai import GenerativeModel, configure
 import google.generativeai as genai
 
 # Document parsing libraries
-import PyPDF2
+import pdfplumber
 from docx import Document
 
 class ProfilePopulator:
@@ -183,17 +183,18 @@ class ProfilePopulator:
             return None
     
     def _extract_pdf_text(self, pdf_path: Path) -> str:
-        """Extract text from PDF using PyPDF2"""
+        """Extract text from PDF using pdfplumber"""
         
         text = ""
         
         try:
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                for page in pdf_reader.pages:
-                    text += page.extract_text()
+            with pdfplumber.open(pdf_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
         except Exception as e:
-            print(f"❌ PyPDF2 failed to extract text: {str(e)}")
+            print(f"❌ pdfplumber failed to extract text: {str(e)}")
             return ""
         
         return text.strip()
