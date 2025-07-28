@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Genkit imports
 from genkit import ai
-from genkit.flows import flow
+from genkit import flow
 from genkit.core import generate
 
 # Firebase imports
