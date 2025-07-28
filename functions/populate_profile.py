@@ -23,7 +23,6 @@ import google.generativeai as genai
 # Document parsing libraries
 import PyPDF2
 from docx import Document
-import fitz  # PyMuPDF for better PDF handling
 
 class ProfilePopulator:
     """
@@ -184,28 +183,18 @@ class ProfilePopulator:
             return None
     
     def _extract_pdf_text(self, pdf_path: Path) -> str:
-        """Extract text from PDF using PyMuPDF (fitz)"""
+        """Extract text from PDF using PyPDF2"""
         
         text = ""
         
         try:
-            # Try PyMuPDF first (better text extraction)
-            doc = fitz.open(str(pdf_path))
-            for page in doc:
-                text += page.get_text()
-            doc.close()
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    text += page.extract_text()
         except Exception as e:
-            print(f"⚠️ PyMuPDF failed, trying PyPDF2: {str(e)}")
-            
-            # Fallback to PyPDF2
-            try:
-                with open(pdf_path, 'rb') as file:
-                    pdf_reader = PyPDF2.PdfReader(file)
-                    for page in pdf_reader.pages:
-                        text += page.extract_text()
-            except Exception as e2:
-                print(f"❌ PyPDF2 also failed: {str(e2)}")
-                return ""
+            print(f"❌ PyPDF2 failed to extract text: {str(e)}")
+            return ""
         
         return text.strip()
     
