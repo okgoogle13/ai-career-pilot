@@ -52,11 +52,10 @@
     "url": "https://github.com/username/personal-ai-career-copilot/issues"
   },
   "homepage": "https://personal-ai-career-copilot.web.app",
-  "dependencies": {
-    "firebase": "^10.7.0",
-    "firebase-tools": "^12.9.1"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "firebase": "^10.7.0",
+    "firebase-tools": "^12.9.1",
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
     "autoprefixer": "^10.4.16",

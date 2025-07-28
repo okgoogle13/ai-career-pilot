@@ -53,31 +53,47 @@ document.addEventListener('DOMContentLoaded', () => {
     let isLoading = false;
 
     // --- Data Definitions (from provided JSON/MD files) ---
-    // In a real app, this might be fetched, but embedding is fine for this scope.
-    const PDF_THEMES = {
-        theme1: { name: "Professional Classic", bestFor: "Traditional industries, senior-level positions." },
-        theme2: { name: "Modern Minimalist", bestFor: "Tech, design, startups, and creative agencies." },
-        theme3: { name: "Bold Executive", bestFor: "Creative executives and innovative leaders." },
-        theme4: { name: "Contemporary Professional", bestFor: "Healthcare, education, non-profits, government." },
-        theme5: { name: "Vibrant Creative", bestFor: "Creative agencies, startups, and digital media." }
-    };
-
-    const TONES_OF_VOICE = [
-        "Professional & Confident",
-        "Empathetic & Collaborative",
-        "Formal & Respectful",
-        "Passionate & Driven",
-        "Innovative & Strategic"
-    ];
+    let PDF_THEMES = {};
+    let TONES_OF_VOICE = [];
 
     /**
      * Initializes the application by setting up themes, event listeners, etc.
      */
-    function init() {
+    async function init() {
         setupTheme();
+        await fetchConfig();
         populateThemeSelect();
         populateToneSelect();
         setupEventListeners();
+    }
+
+    /**
+     * Fetches configuration data from a JSON file.
+     */
+    async function fetchConfig() {
+        try {
+            const response = await fetch('config.json');
+            const config = await response.json();
+            PDF_THEMES = config.pdfThemes;
+            TONES_OF_VOICE = config.tonesOfVoice;
+        } catch (error) {
+            console.error('Error fetching config:', error);
+            // Use fallback data if fetch fails
+            PDF_THEMES = {
+                theme1: { name: "Professional Classic", bestFor: "Traditional industries, senior-level positions." },
+                theme2: { name: "Modern Minimalist", bestFor: "Tech, design, startups, and creative agencies." },
+                theme3: { name: "Bold Executive", bestFor: "Creative executives and innovative leaders." },
+                theme4: { name: "Contemporary Professional", bestFor: "Healthcare, education, non-profits, government." },
+                theme5: { name: "Vibrant Creative", bestFor: "Creative agencies, startups, and digital media." }
+            };
+            TONES_OF_VOICE = [
+                "Professional & Confident",
+                "Empathetic & Collaborative",
+                "Formal & Respectful",
+                "Passionate & Driven",
+                "Innovative & Strategic"
+            ];
+        }
     }
 
     // --- Theme Management ---
@@ -255,21 +271,22 @@ document.addEventListener('DOMContentLoaded', () => {
         setButtonLoadingState(true);
         showLoadingOverlay();
 
-        const formData = {
-            job_ad_url: jobUrlInput.value,
-            theme_id: themeSelect.value,
-            tone_of_voice: toneSelect.value
-        };
+        const formData = new FormData();
+        formData.append('job_ad_url', jobUrlInput.value);
+        formData.append('theme_id', themeSelect.value);
+        formData.append('tone_of_voice', toneSelect.value);
+        if (resumeFile) {
+            formData.append('resume_file', resumeFile);
+        }
 
         try {
-            // This simulates the call to the Genkit 'generateApplication' flow
-            const result = await simulateApiCall(formData);
+            const result = await callGenerateApplicationApi(formData);
             renderResults(result);
             resultsSection.style.display = 'block';
             resultsSection.scrollIntoView({ behavior: 'smooth' });
         } catch (error) {
             console.error('Generation failed:', error);
-            showToast(error.message || 'An unexpected error occurred.', 'error');
+            showToast(error.message || 'An unexpected error occurred. Please try again.', 'error');
         } finally {
             hideLoadingOverlay();
             setButtonLoadingState(false);
@@ -303,51 +320,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     /**
-     * Simulates the complex backend process with progress updates.
-     * @param {object} data - The form data sent to the backend.
+     * Calls the backend API to generate application documents.
+     * @param {object} data - The form data to send to the backend.
      * @returns {Promise<object>} A promise that resolves with the generated data.
      */
-    function simulateApiCall(data) {
-        return new Promise((resolve, reject) => {
-            const steps = [
-                { status: 'Scraping job ad from URL...', duration: 2000, progress: 20 },
-                { status: 'Retrieving user profile from Firestore...', duration: 1500, progress: 35 },
-                { status: 'Loading Knowledge Base for context...', duration: 1500, progress: 50 },
-                { status: 'Prompting Gemini 2.5 Pro to generate documents...', duration: 4000, progress: 85 },
-                { status: 'Analyzing document for ATS compatibility...', duration: 2000, progress: 100 },
-                { status: 'Finalizing results...', duration: 500, progress: 100 },
-            ];
+    async function callGenerateApplicationApi(formData) {
+        // Replace with your actual Firebase Function URL
+        const apiUrl = 'https://us-central1-your-project-id.cloudfunctions.net/generate_application_http';
 
-            let currentStep = 0;
-            let totalTime = 0;
-
-            function runStep() {
-                if (currentStep < steps.length) {
-                    const step = steps[currentStep];
-                    updateLoadingProgress(step.status, step.progress);
-                    totalTime += step.duration;
-                    
-                    setTimeout(() => {
-                        currentStep++;
-                        runStep();
-                    }, step.duration);
-                } else {
-                     // Based on REQ-2.4 schema
-                    const mockResponse = {
-                        generatedMarkdown: `### Cover Letter for Housing Support Worker\n\n**Subject: Application for Housing Support Officer**\n\nDear Hiring Manager,\n\nI am writing with great enthusiasm to apply for the Housing Support Officer position at Metro Housing Alliance, as advertised on SEEK.com.au. My experience at City Outreach Mission, where I managed a complex caseload of over 15 clients, aligns perfectly with the requirements of this role. I have a proven ability to apply trauma-informed practices and conduct comprehensive risk assessments, which are critical skills I understand your organization values.\n\nI am particularly drawn to your commitment to assertive outreach. In my previous role, I successfully connected an average of 5 new clients per week to ongoing case management, demonstrating my resilience and practical ability to engage vulnerable individuals. I am confident I can contribute to your team's success in achieving sustainable housing outcomes for your clients.\n\nThank you for your time. I have attached my resume and look forward to discussing my application further.\n\nSincerely,\nNishant Jonas Dougall`,
-                        atsAnalysis: {
-                            keywordMatchPercent: 88,
-                            matchedKeywords: ["Case Management", "Trauma-Informed", "Risk Assessment", "Advocacy", "Homelessness", "Client Support", "Stakeholder Engagement", "NDIS", "Mental Health", "AOD"],
-                            missingKeywords: ["MARAM Framework", "CIMS", "Child Protection"],
-                            suggestions: "Your document is a strong match. To improve further, consider explicitly mentioning experience with the MARAM framework if applicable, and name specific Client Information Management Systems (CIMS) you've used."
-                        }
-                    };
-                    resolve(mockResponse);
-                }
-            }
-
-            runStep();
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            body: formData,
         });
+
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                // Ignore if response is not JSON
+            }
+            throw new Error(errorMessage);
+        }
+
+        return await response.json();
     }
 
 
