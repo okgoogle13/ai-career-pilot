@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function callGenerateApplicationApi(formData) {
         // Replace with your actual Firebase Function URL
-        const apiUrl = 'https://us-central1-your-project-id.cloudfunctions.net/generate_application_http';
+        const apiUrl = 'https://us-central1-[ACTUAL-PROJECT-ID].cloudfunctions.net/generate_application_http';
 
         const response = await fetch(apiUrl, {
             method: 'POST',
