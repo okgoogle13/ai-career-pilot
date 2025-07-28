@@ -9,6 +9,10 @@
     ],
     "rewrites": [
       {
+        "source": "/config.json",
+        "destination": "/config.json"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
@@ -62,7 +66,7 @@
         "venv",
         ".venv"
       ],
-      "runtime": "python311"
+      "runtime": "python312"
     }
   ],
   "firestore": {

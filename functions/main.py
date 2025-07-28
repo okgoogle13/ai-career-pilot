@@ -11,23 +11,20 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 # Genkit imports
-from genkit import ai
-from genkit import flow
+from genkit import ai, flow
 from genkit.core import generate
+from genkit.models.googleai import gemini_2_5_pro
 
 # Firebase imports
 from firebase_functions import https_fn, scheduler_fn
 from firebase_admin import initialize_app, firestore
-import google.cloud.firestore
-
-# Google AI imports
-from genkit.models.googleai import GoogleAIEmbedding, gemini_2_5_pro
-from genkit.vectorstores.pinecone import pinecone_retriever
 
 # Local utilities
 from utils.scraper import JobAdScraper
 from utils.firebase_client import FirestoreClient
 from utils.pdf_generator import PDFGenerator
+from utils.gmail_client import GmailClient
+from utils.calendar_client import CalendarClient
 from config import Config
 
 # Initialize Firebase Admin SDK
@@ -43,6 +40,8 @@ firestore_client = FirestoreClient(db)
 # Initialize utilities
 job_scraper = JobAdScraper()
 pdf_generator = PDFGenerator()
+gmail_client = GmailClient()
+calendar_client = CalendarClient()
 
 # Load knowledge base content
 def load_knowledge_base() -> str:
@@ -140,7 +139,7 @@ async def generate_application(request: Dict[str, Any]) -> Dict[str, Any]:
         print(f"Error in generate_application flow: {str(e)}")
         raise e
 
-@flow  
+@flow
 async def job_scout() -> Dict[str, Any]:
     """
     Scheduled Genkit flow for monitoring Gmail and creating calendar events.
@@ -155,17 +154,10 @@ async def job_scout() -> Dict[str, Any]:
     """
     
     try:
-        # Initialize Gmail and Calendar API clients
-        from utils.gmail_client import GmailClient
-        from utils.calendar_client import CalendarClient
-        
-        gmail_client = GmailClient()
-        calendar_client = CalendarClient()
-        
         # Scan for unread emails from job alert senders
         target_senders = [
             "noreply@s.seek.com.au",
-            "noreply@ethicaljobs.com.au", 
+            "noreply@ethicaljobs.com.au",
             "donotreply@jora.com",
             "support@careers.vic.gov.au"
         ]
@@ -204,9 +196,14 @@ async def job_scout() -> Dict[str, Any]:
         
     except Exception as e:
         print(f"Error in job_scout flow: {str(e)}")
+        # Log the error for better debugging
+        # from google.cloud import logging
+        # client = logging.Client()
+        # logger = client.logger('job_scout_errors')
+        # logger.log_struct({'message': f"Error in job_scout flow: {str(e)}"}, severity='ERROR')
         return {
             "processedEmails": 0,
-            "eventsCreated": 0,  
+            "eventsCreated": 0,
             "status": f"error: {str(e)}"
         }
 
@@ -279,16 +276,32 @@ def _parse_generation_response(response_text: str) -> Dict[str, Any]:
 def _perform_ats_analysis(document_text: str, job_requirements: str) -> Dict[str, Any]:
     """Perform ATS keyword analysis comparing document against job requirements."""
     
+    import nltk
+    from nltk.corpus import stopwords
+    from nltk.tokenize import word_tokenize
     import re
-    from collections import Counter
-    
-    # Extract keywords from job requirements
-    job_keywords = set(re.findall(r'\b[a-zA-Z]{3,}\b', job_requirements.lower()))
-    job_keywords = {word for word in job_keywords if len(word) > 3}
-    
-    # Extract keywords from document
-    doc_keywords = set(re.findall(r'\b[a-zA-Z]{3,}\b', document_text.lower()))
-    
+
+    # Download necessary NLTK data
+    try:
+        stopwords.words('english')
+    except:
+        nltk.downloader.download('stopwords')
+        nltk.downloader.download('punkt')
+
+    stop_words = set(stopwords.words('english'))
+
+    def extract_keywords(text: str) -> set:
+        # Remove punctuation and convert to lower case
+        text = re.sub(r'[^\w\s]', '', text.lower())
+        # Tokenize the text
+        tokens = word_tokenize(text)
+        # Filter out stop words and short words
+        return {word for word in tokens if word not in stop_words and len(word) > 2}
+
+    # Extract keywords from job requirements and document
+    job_keywords = extract_keywords(job_requirements)
+    doc_keywords = extract_keywords(document_text)
+
     # Find matches
     matched_keywords = list(job_keywords.intersection(doc_keywords))
     missing_keywords = list(job_keywords - doc_keywords)
@@ -327,32 +340,54 @@ def _extract_job_opportunities(email: Dict) -> List[Dict[str, Any]]:
     return opportunities
 
 # HTTP endpoints for Firebase Functions
-@https_fn.on_request()
+@https_fn.on_request(cors=True)
 def generate_application_http(req: https_fn.Request) -> https_fn.Response:
     """HTTP endpoint for the generate_application flow."""
     
+    if req.method == 'OPTIONS':
+        # Handle preflight requests for CORS
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return https_fn.Response("", status=204, headers=headers)
+
     if req.method != 'POST':
         return https_fn.Response("Method not allowed", status=405)
     
     try:
         request_data = req.get_json()
         
+        # Basic validation
+        if not all(k in request_data for k in ["job_ad_url", "theme_id", "tone_of_voice"]):
+            return https_fn.Response(
+                json.dumps({"error": "Missing required fields"}),
+                status=400,
+                headers={"Content-Type": "application/json"}
+            )
+
         # Run the async flow
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(generate_application(request_data))
+        result = asyncio.run(generate_application(request_data))
         
         return https_fn.Response(
             json.dumps(result),
             status=200,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
         )
         
     except Exception as e:
+        # Log the error for better debugging
+        # from google.cloud import logging
+        # client = logging.Client()
+        # logger = client.logger('http_errors')
+        # logger.log_struct({'message': f"Error in generate_application_http: {str(e)}"}, severity='ERROR')
+
         return https_fn.Response(
-            json.dumps({"error": str(e)}),
+            json.dumps({"error": "An unexpected error occurred."}),
             status=500,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
         )
 
 @scheduler_fn.on_schedule(schedule="0 */1 * * *")  # Run every hour
