@@ -284,8 +284,8 @@ def _perform_ats_analysis(document_text: str, job_requirements: str) -> Dict[str
     # Download necessary NLTK data
     try:
         stopwords.words('english')
-    exceptnltk.downloader.download('stopwords')
     except:
+        nltk.downloader.download('stopwords')
         nltk.downloader.download('punkt')
 
     stop_words = set(stopwords.words('english'))
