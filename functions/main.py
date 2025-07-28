@@ -408,7 +408,7 @@ def _extract_text_from_file(file: FileStorage) -> str:
     Returns:
         The extracted text content as a string.
     """
-    filename = file.filename.lower()
+    filename = (file.filename or '').lower()
     text = ""
 
     try:
