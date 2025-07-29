@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """
 Personal AI Career Co-Pilot - Profile Population Script
-Local script to parse user documents and populate Firestore profile using Gemini 2.5 Pro
+Local script to parse user documents and populate Firestore profile.
 """
 
 import os
 import sys
-import json
 import argparse
 from pathlib import Path
-from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 # Firebase Admin SDK
@@ -23,6 +21,9 @@ import google.generativeai as genai
 # Document parsing libraries
 import pdfplumber
 from docx import Document
+
+# Local AI service
+from ai.profile_parser import parse_resume_with_ai, parse_multiple_documents_with_ai
 
 class ProfilePopulator:
     """
@@ -74,8 +75,8 @@ class ProfilePopulator:
             
             print(f"📝 Extracted {len(resume_text)} characters from resume")
             
-            # Parse resume using Gemini 2.5 Pro
-            structured_profile = self._parse_resume_with_ai(resume_text)
+            # Parse resume using AI service
+            structured_profile = parse_resume_with_ai(resume_text, self.model)
             
             if not structured_profile:
                 print("❌ Failed to parse resume with AI")
@@ -129,8 +130,8 @@ class ProfilePopulator:
             print(f"📝 Extracted text from documents: {', '.join(document_types)}")
             
             # Parse combined documents with AI
-            structured_profile = self._parse_multiple_documents_with_ai(
-                all_documents_text, document_types
+            structured_profile = parse_multiple_documents_with_ai(
+                all_documents_text, document_types, self.model
             )
             
             if not structured_profile:
@@ -245,214 +246,6 @@ class ProfilePopulator:
         # Default to resume
         else:
             return 'resume'
-    
-    def _parse_resume_with_ai(self, resume_text: str) -> Optional[Dict[str, Any]]:
-        """
-        Parse resume text using Gemini 2.5 Pro to extract structured data
-        
-        Args:
-            resume_text: Raw resume text
-            
-        Returns:
-            Structured profile data or None if failed
-        """
-        
-        prompt = f"""
-You are an expert career counselor specializing in Australian Community Services sector roles. 
-Parse the following resume and extract structured information in JSON format.
-
-RESUME TEXT:
-{resume_text}
-
-Please extract and structure the information into the following JSON schema:
-{{
-    "fullName": "string",
-    "email": "string",
-    "phone": "string", 
-    "location": "string (suburb, state format if available)",
-    "personalStatement": "string (professional summary if available)",
-    "workExperience": [
-        {{
-            "jobTitle": "string",
-            "employer": "string",
-            "location": "string",
-            "startDate": "string (YYYY-MM format if available, otherwise approximate)",
-            "endDate": "string or 'Present'",
-            "responsibilities": ["list of key responsibilities"],
-            "achievements": ["list of achievements with metrics where possible"]
-        }}
-    ],
-    "education": [
-        {{
-            "qualification": "string",
-            "institution": "string", 
-            "year": "string",
-            "details": "string (additional details if available)"
-        }}
-    ],
-    "skills": [
-        {{
-            "category": "string (e.g., 'Technical Skills', 'Interpersonal Skills')",
-            "skills": ["list of specific skills"]
-        }}
-    ],
-    "certifications": [
-        {{
-            "name": "string",
-            "issuer": "string",
-            "year": "string",
-            "expiryDate": "string (if applicable)"
-        }}
-    ],
-    "volunteerWork": [
-        {{
-            "role": "string",
-            "organization": "string",
-            "duration": "string",
-            "description": "string"
-        }}
-    ]
-}}
-
-Guidelines:
-- Use Australian spelling and formatting
-- Extract exact information where available, avoid assumptions
-- Format phone numbers in Australian format if possible
-- Identify community services related experience and skills
-- Use empty arrays [] for sections with no information
-- Ensure all JSON is valid and properly formatted
-
-Return only the JSON object, no additional text.
-"""
-        
-        try:
-            response = self.model.generate_content(prompt)
-            
-            if not response.text:
-                print("❌ No response from Gemini AI")
-                return None
-            
-            # Parse JSON response
-            profile_data = json.loads(response.text.strip())
-            
-            # Add metadata
-            profile_data['createdAt'] = datetime.utcnow().isoformat()
-            profile_data['lastUpdated'] = datetime.utcnow().isoformat()
-            profile_data['dataSource'] = 'resume_parse'
-            
-            return profile_data
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse AI response as JSON: {str(e)}")
-            print(f"Raw response: {response.text[:500]}...")
-            return None
-            
-        except Exception as e:
-            print(f"❌ Error calling Gemini AI: {str(e)}")
-            return None
-    
-    def _parse_multiple_documents_with_ai(self, documents_text: str, 
-                                        document_types: List[str]) -> Optional[Dict[str, Any]]:
-        """
-        Parse multiple career documents using Gemini 2.5 Pro
-        
-        Args:
-            documents_text: Combined text from all documents
-            document_types: List of identified document types
-            
-        Returns:
-            Comprehensive structured profile data
-        """
-        
-        prompt = f"""
-You are an expert career counselor specializing in Australian Community Services sector roles.
-Parse the following career documents and create a comprehensive profile in JSON format.
-
-DOCUMENT TYPES IDENTIFIED: {', '.join(document_types)}
-
-DOCUMENTS TEXT:
-{documents_text}
-
-Create a comprehensive profile by extracting and consolidating information from all documents.
-Use the following JSON schema:
-
-{{
-    "fullName": "string",
-    "email": "string", 
-    "phone": "string",
-    "location": "string",
-    "personalStatement": "string (synthesize from all documents)",
-    "workExperience": [
-        {{
-            "jobTitle": "string",
-            "employer": "string",
-            "location": "string", 
-            "startDate": "string",
-            "endDate": "string or 'Present'",
-            "responsibilities": ["detailed list"],
-            "achievements": ["quantified achievements where possible"],
-            "keySkillsDemonstrated": ["skills shown in this role"]
-        }}
-    ],
-    "education": [...],
-    "skills": [
-        {{
-            "category": "string",
-            "skills": ["list"],
-            "proficiencyLevel": "Beginner|Intermediate|Advanced|Expert"
-        }}
-    ],
-    "certifications": [...],
-    "volunteerWork": [...],
-    "careerHighlights": ["3-5 top achievements across all documents"],
-    "sectorExperience": {{
-        "communityServices": "number of years",
-        "specificAreas": ["list of CS sub-sectors"],
-        "clientGroups": ["populations worked with"],
-        "serviceTypes": ["types of services delivered"]
-    }},
-    "writingSamples": {{
-        "hasKSCExperience": boolean,
-        "writingStrengths": ["identified from documents"],
-        "preferredStyle": "professional|conversational|confident|compassionate"
-    }}
-}}
-
-Instructions:
-- Consolidate duplicate information intelligently
-- Prioritize most recent and relevant information
-- Identify community services specific experience and terminology
-- Note any gaps or inconsistencies for future reference
-- Use Australian terminology and formatting
-- Extract examples of strong achievement statements using CAR/STAR methodology
-
-Return only the JSON object.
-"""
-        
-        try:
-            response = self.model.generate_content(prompt)
-            
-            if not response.text:
-                print("❌ No response from Gemini AI")
-                return None
-            
-            profile_data = json.loads(response.text.strip())
-            
-            # Add metadata
-            profile_data['createdAt'] = datetime.utcnow().isoformat()
-            profile_data['lastUpdated'] = datetime.utcnow().isoformat()
-            profile_data['dataSource'] = 'multi_document_parse'
-            profile_data['sourcedDocuments'] = document_types
-            
-            return profile_data
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse AI response as JSON: {str(e)}")
-            return None
-            
-        except Exception as e:
-            print(f"❌ Error calling Gemini AI: {str(e)}")
-            return None
     
     def _save_profile_to_firestore(self, profile_data: Dict[str, Any], 
                                  user_id: str) -> bool:
