@@ -82,7 +82,7 @@ class DossierGenerator:
             # The model should return a JSON string.
             parsed_data = json.loads(response_text)
             validated_data = DossierOutput(**parsed_data)
-            return validated_data.dict()
+            return validated_data.model_dump()
         except (json.JSONDecodeError, ValidationError) as e:
             # Handle cases where the response is not valid JSON
             print(f"Error parsing or validating dossier response: {e}")
