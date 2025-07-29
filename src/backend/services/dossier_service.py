@@ -7,13 +7,13 @@ from typing import Dict, Any
 from genkit import ai
 from genkit.models.googleai import gemini_2_5_pro
 
-class DossierGenerator:
+class DossierService:
     """
     Generates a detailed dossier on a company using web search and AI.
     """
 
     def __init__(self):
-        """Initialize the DossierGenerator."""
+        """Initialize the DossierService."""
         self.model = gemini_2_5_pro
 
     async def generate_dossier(self, company_name: str) -> Dict[str, Any]:
