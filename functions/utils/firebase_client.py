@@ -24,7 +24,8 @@ class FirestoreClient:
         self.profiles_collection = db.collection('profiles')
         self.documents_collection = db.collection('generated_documents')
         self.jobs_collection = db.collection('job_opportunities')
-        self.dossier_cache_collection = db.collection('dossier_cache')
+        DOSSIER_CACHE_COLLECTION = os.getenv('DOSSIER_CACHE_COLLECTION', 'dossier_cache')
+        self.dossier_cache_collection = db.collection(DOSSIER_CACHE_COLLECTION)
     
     async def get_user_profile(self, user_id: str = "primary_user") -> Dict[str, Any]:
         """
