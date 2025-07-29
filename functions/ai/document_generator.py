@@ -116,25 +116,22 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
         print(f"Error in generate_application flow: {str(e)}")
         raise e
 
-def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str,
-                               dossier: Dict, theme_id: str, tone_of_voice: str) -> str:
-    """Construct the structured prompt for Gemini 2.5 Pro."""
-
-    prompt = f\"\"\"
+# Template for the generation prompt
+GENERATION_PROMPT_TEMPLATE = """
 You are an expert Australian community services career consultant with deep knowledge of the sector. Your task is to generate a tailored career document (resume, cover letter, or KSC response) and perform ATS analysis.
 
 JOB ADVERTISEMENT DETAILS:
-Company: {job_data.get('company_name', 'N/A')}
-Position: {job_data.get('job_title', 'N/A')}
-Description: {job_data.get('job_description', 'N/A')}
-Key Responsibilities: {job_data.get('key_responsibilities', 'N/A')}
-Selection Criteria: {job_data.get('selection_criteria', 'N/A')}
+Company: {company_name}
+Position: {job_title}
+Description: {job_description}
+Key Responsibilities: {key_responsibilities}
+Selection Criteria: {selection_criteria}
 
 COMPANY DOSSIER:
-{json.dumps(dossier, indent=2)}
+{dossier}
 
 USER PROFILE:
-{json.dumps(user_profile, indent=2)}
+{user_profile}
 
 KNOWLEDGE BASE CONTENT:
 {kb_content}
