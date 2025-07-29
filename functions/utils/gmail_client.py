@@ -14,10 +14,9 @@ class GmailClient:
 
     def __init__(self, credentials_info: Dict[str, str] = None):
         """
-        Initialize the Gmail client.
-
-        Args:
-            credentials_info: Dictionary with credentials information.
+        Initializes the GmailClient with optional credentials for Gmail API access.
+        
+        If credentials information is provided, sets up OAuth2 credentials and the Gmail API service client. If not, both credentials and service are set to None, allowing for scenarios such as local testing without API access.
         """
         if credentials_info:
             self.creds = Credentials.from_authorized_user_info(credentials_info, ['https://www.googleapis.com/auth/gmail.readonly'])
@@ -29,13 +28,13 @@ class GmailClient:
 
     async def get_unread_emails(self, sender: str) -> List[Dict[str, Any]]:
         """
-        Get unread emails from a specific sender.
-
-        Args:
-            sender: The email address of the sender.
-
+        Retrieve unread emails from a specified sender.
+        
+        Parameters:
+            sender (str): The email address to filter unread emails by.
+        
         Returns:
-            A list of email dictionaries.
+            List[Dict[str, Any]]: A list of dictionaries, each containing the message ID, subject, and body snippet of an unread email from the sender. Returns an empty list if the Gmail service is not initialized.
         """
         if not self.service:
             return []
@@ -58,10 +57,10 @@ class GmailClient:
 
     async def mark_as_read(self, message_id: str):
         """
-        Mark an email as read.
-
-        Args:
-            message_id: The ID of the message to mark as read.
+        Marks the specified email as read by removing the 'UNREAD' label.
+        
+        Parameters:
+            message_id (str): The unique identifier of the email message to mark as read.
         """
         if not self.service:
             return

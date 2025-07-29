@@ -55,7 +55,12 @@ ats_analyzer = ATSAnalyzer()
 
 # Load knowledge base content
 def load_knowledge_base() -> str:
-    """Load all knowledge base artifacts into a single context string."""
+    """
+    Aggregates the contents of multiple knowledge base files into a single string.
+    
+    Returns:
+        str: Combined content of all specified knowledge base files, each prefixed with its file name as a header.
+    """
     kb_dir = Path(__file__).parent / "kb"
     kb_content = ""
     
@@ -80,26 +85,16 @@ def load_knowledge_base() -> str:
 @flow
 async def generate_application(request: Dict[str, Any], resume_file: Optional[FileStorage] = None) -> Dict[str, Any]:
     """
-    Primary Genkit flow for generating tailored career documents and ATS analysis.
+    Generates a tailored career document and performs ATS analysis based on a job advertisement and user profile.
     
-    Args:
-        request: {
-            "job_ad_url": str,
-            "theme_id": str, 
-            "tone_of_voice": str
-        }
-        resume_file: An optional FileStorage object for the user's resume.
+    This asynchronous flow processes an uploaded resume or retrieves the user's profile, scrapes job details from the provided job ad URL, generates a company dossier, and loads relevant knowledge base content. It then constructs a structured prompt and uses an AI model to generate a customized career document. The generated document is analyzed for keyword alignment with the job description using an ATS analyzer.
+    
+    Parameters:
+        request (dict): Contains "job_ad_url", "theme_id", and "tone_of_voice" for the generation context.
+        resume_file (FileStorage, optional): An uploaded resume file to extract the user profile; if not provided, the profile is retrieved from storage.
     
     Returns:
-        {
-            "generatedMarkdown": str,
-            "atsAnalysis": {
-                "keywordMatchPercent": float,
-                "matchedKeywords": List[str],
-                "missingKeywords": List[str], 
-                "suggestions": str
-            }
-        }
+        dict: Contains the generated markdown document and ATS analysis results, including keyword match percentage, matched and missing keywords, and suggestions.
     """
     
     try:
@@ -161,15 +156,12 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
 @flow
 async def job_scout() -> Dict[str, Any]:
     """
-    Scheduled Genkit flow for monitoring Gmail and creating calendar events.
-    Scans for interview invitations and job opportunities.
+    Monitors Gmail for job-related emails and creates calendar reminder events for identified opportunities.
+    
+    Scans unread emails from specified job alert senders, extracts job opportunities, creates calendar events with reminders for each opportunity, and marks emails as read.
     
     Returns:
-        {
-            "processedEmails": int,
-            "eventsCreated": int,
-            "status": str
-        }
+        A dictionary with the number of processed emails, events created, and a status string.
     """
     
     try:
@@ -228,7 +220,20 @@ async def job_scout() -> Dict[str, Any]:
 
 def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str,
                                dossier: Dict, theme_id: str, tone_of_voice: str) -> str:
-    """Construct the structured prompt for Gemini 2.5 Pro."""
+    """
+                               Builds a comprehensive prompt string for the Gemini 2.5 Pro model to generate a tailored career document and perform ATS analysis.
+                               
+                               Parameters:
+                                   job_data (Dict): Job advertisement details including company, title, description, responsibilities, and selection criteria.
+                                   user_profile (Dict): Structured user profile information.
+                                   kb_content (str): Combined knowledge base content relevant to the sector.
+                                   dossier (Dict): Company dossier data in JSON format.
+                                   theme_id (str): Thematic focus for the generated document.
+                                   tone_of_voice (str): Desired tone for the document.
+                               
+                               Returns:
+                                   str: A structured prompt containing all relevant information and explicit instructions for document generation and formatting.
+                               """
     
     prompt = f"""
 You are an expert Australian community services career consultant with deep knowledge of the sector. Your task is to generate a tailored career document (resume, cover letter, or KSC response) and perform ATS analysis.
@@ -273,7 +278,14 @@ Generate a professional, tailored document that demonstrates strong alignment wi
     return prompt
 
 def _parse_generation_response(response_text: str) -> Dict[str, Any]:
-    """Parse the Gemini response and extract structured content."""
+    """
+    Parses the AI-generated response to extract markdown content and a plain text version.
+    
+    If the response is valid JSON, extracts the "markdown_content" field; otherwise, treats the entire response as markdown. Returns a dictionary with both the markdown and a plain text version with basic markdown symbols removed.
+    
+    Returns:
+        Dict[str, Any]: A dictionary containing "markdown" and "document_text" keys.
+    """
     
     try:
         # Try to parse as JSON first
@@ -297,7 +309,15 @@ def _parse_generation_response(response_text: str) -> Dict[str, Any]:
 
 
 def _extract_job_opportunities(email: Dict) -> List[Dict[str, Any]]:
-    """Extract job opportunities from email content."""
+    """
+    Parses an email to identify and extract basic job opportunity information.
+    
+    Parameters:
+        email (Dict): A dictionary containing at least 'subject' and 'body' keys representing the email content.
+    
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, each representing a detected job opportunity with job title, company, URL, and deadline fields. Returns an empty list if no opportunities are found.
+    """
     
     opportunities = []
     subject = email.get('subject', '')

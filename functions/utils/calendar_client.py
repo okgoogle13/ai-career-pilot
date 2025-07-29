@@ -15,10 +15,9 @@ class CalendarClient:
 
     def __init__(self, credentials_info: Dict[str, str] = None):
         """
-        Initialize the Calendar client.
-
-        Args:
-            credentials_info: Dictionary with credentials information.
+        Initialize the CalendarClient with optional Google OAuth2 credentials.
+        
+        If credentials are provided, sets up the Google Calendar API service client; otherwise, the client remains uninitialized.
         """
         if credentials_info:
             self.creds = Credentials.from_authorized_user_info(credentials_info, ['https://www.googleapis.com/auth/calendar'])
@@ -29,15 +28,15 @@ class CalendarClient:
 
     async def create_reminder_event(self, title: str, description: str, reminder_days: int) -> Dict[str, Any]:
         """
-        Create a reminder event in the user's calendar.
-
-        Args:
-            title: The title of the event.
-            description: The description of the event.
-            reminder_days: The number of days before the event to set a reminder.
-
+        Asynchronously creates a one-hour reminder event in the user's primary Google Calendar a specified number of days from now, with custom email and popup reminders.
+        
+        Parameters:
+            title (str): Title of the event.
+            description (str): Description of the event.
+            reminder_days (int): Number of days from the current time to schedule the event.
+        
         Returns:
-            The created event dictionary.
+            Dict[str, Any]: The created event data as returned by the Google Calendar API, or None if the service client is not initialized.
         """
         if not self.service:
             return None

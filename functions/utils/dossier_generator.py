@@ -13,18 +13,20 @@ class DossierGenerator:
     """
 
     def __init__(self):
-        """Initialize the DossierGenerator."""
+        """
+        Initialize the DossierGenerator with the Gemini 2.5 Pro AI model.
+        """
         self.model = gemini_2_5_pro
 
     async def generate_dossier(self, company_name: str) -> Dict[str, Any]:
         """
-        Perform background research and generate a dossier on the hiring organization.
-
-        Args:
-            company_name: The name of the company to research.
-
+        Asynchronously generates a structured background research dossier for a specified company using AI.
+        
+        Parameters:
+            company_name (str): The name of the company to research.
+        
         Returns:
-            A dictionary containing the company dossier.
+            Dict[str, Any]: A dictionary containing the company's organizational overview, communication style, strategic priorities, and key pain points. If an error occurs, returns a dictionary with error details and placeholder values.
         """
         try:
             prompt = self._construct_dossier_prompt(company_name)
@@ -51,7 +53,15 @@ class DossierGenerator:
             }
 
     def _construct_dossier_prompt(self, company_name: str) -> str:
-        """Construct the prompt for the dossier generation."""
+        """
+        Builds a detailed prompt instructing the AI to research a specified company and generate a JSON-formatted dossier covering organizational overview, communication style, strategic priorities, and key pain points.
+        
+        Parameters:
+            company_name (str): The name of the company to be researched.
+        
+        Returns:
+            str: The constructed prompt string for AI dossier generation.
+        """
 
         prompt = f"""
 You are a world-class business analyst. Your task is to conduct thorough research on a company and generate a detailed "dossier".
@@ -74,7 +84,17 @@ Return the dossier as a JSON object with the following keys:
         return prompt
 
     def _parse_dossier_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse the AI's response to extract the structured dossier."""
+        """
+        Parse the AI-generated response text into a structured dossier dictionary.
+        
+        If the response is not valid JSON, returns a dictionary containing an error message and the raw response text.
+        
+        Parameters:
+            response_text (str): The text output from the AI model.
+        
+        Returns:
+            Dict[str, Any]: A dictionary representing the parsed dossier, or an error structure if parsing fails.
+        """
         import json
         try:
             # The model should return a JSON string.

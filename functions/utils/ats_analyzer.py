@@ -14,7 +14,9 @@ class ATSAnalyzer:
     """
 
     def __init__(self):
-        """Initialize the ATSAnalyzer."""
+        """
+        Initializes the ATSAnalyzer and ensures required NLTK resources for stopword removal and tokenization are available.
+        """
         try:
             stopwords.words('english')
         except LookupError:
@@ -23,14 +25,14 @@ class ATSAnalyzer:
 
     def analyze(self, document_text: str, job_description: str) -> dict:
         """
-        Performs a compatibility check, scoring, and provides feedback.
-
-        Args:
-            document_text: The text of the generated document.
-            job_description: The text of the job description.
-
+        Analyze a document against a job description to assess keyword match and provide improvement suggestions.
+        
+        Parameters:
+            document_text (str): The text content of the document to be evaluated.
+            job_description (str): The text content of the job description for comparison.
+        
         Returns:
-            A dictionary with the ATS analysis.
+            dict: A dictionary containing the percentage of job keywords matched, lists of matched and missing keywords (up to 20 each), and tailored suggestions for improvement.
         """
         job_keywords = self._extract_keywords(job_description)
         doc_keywords = self._extract_keywords(document_text)
@@ -58,14 +60,30 @@ class ATSAnalyzer:
         }
 
     def _extract_keywords(self, text: str) -> set:
-        """Extracts keywords from a given text."""
+        """
+        Extract keywords from text by removing punctuation, lowercasing, tokenizing, and filtering out English stopwords and short words.
+        
+        Parameters:
+            text (str): The input text from which to extract keywords.
+        
+        Returns:
+            set: A set of keywords found in the text.
+        """
         stop_words = set(stopwords.words('english'))
         text = re.sub(r'[^\w\s]', '', text.lower())
         tokens = word_tokenize(text)
         return {word for word in tokens if word not in stop_words and len(word) > 2}
 
     def _generate_suggestions(self, missing_keywords: list) -> str:
-        """Generates actionable feedback for improvement."""
+        """
+        Generate feedback based on missing keywords, suggesting which ones to incorporate for improved keyword coverage.
+        
+        Parameters:
+            missing_keywords (list): List of keywords not found in the document.
+        
+        Returns:
+            str: Suggestion message tailored to the presence or absence of missing keywords.
+        """
         if not missing_keywords:
             return "Excellent keyword coverage!"
 
