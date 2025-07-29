@@ -49,7 +49,7 @@ class GmailClient:
             msg = self.service.users().messages().get(userId='me', id=message['id']).execute()
             email_data = {
                 'id': message['id'],
-                'subject': next(header['value'] for header in msg['payload']['headers'] if header['name'] == 'Subject'),
+                'subject': next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'Subject'), 'No Subject'),
                 'body': msg['snippet']  # Using snippet for simplicity
             }
             emails.append(email_data)
