@@ -155,7 +155,7 @@ Provide your response in the following JSON structure:
 }}
 
 Generate a professional, tailored document that demonstrates strong alignment with the job requirements using authentic Australian community services language and best practices.
-\"\"\"
+"""
 
     return prompt
 
