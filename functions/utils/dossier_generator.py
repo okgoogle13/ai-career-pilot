@@ -55,7 +55,7 @@ class DossierGenerator:
             try:
                 # Validate dossier_data using the DossierOutput model
                 validated_dossier = DossierOutput(**dossier_data)
-                await firestore_client.save_dossier(company_name, validated_dossier.dict())
+                await firestore_client.save_dossier(company_name, validated_dossier.model_dump())
             except ValidationError as e:
                 print(f"Validation error for dossier data: {e}")
                 return {
