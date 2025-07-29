@@ -24,6 +24,7 @@ class FirestoreClient:
         self.profiles_collection = db.collection('profiles')
         self.documents_collection = db.collection('generated_documents')
         self.jobs_collection = db.collection('job_opportunities')
+        self.dossier_cache_collection = db.collection('dossier_cache')
     
     async def get_user_profile(self, user_id: str = "primary_user") -> Dict[str, Any]:
         """
@@ -286,6 +287,40 @@ class FirestoreClient:
             "lastUpdated": datetime.utcnow()
         }
     
+    async def get_dossier(self, company_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a cached dossier for a given company.
+
+        Args:
+            company_name: The name of the company.
+
+        Returns:
+            The cached dossier data, or None if not found.
+        """
+        try:
+            doc_ref = self.dossier_cache_collection.document(company_name)
+            doc = await doc_ref.get()
+            if doc.exists:
+                return doc.to_dict()
+            return None
+        except Exception as e:
+            print(f"Error getting cached dossier: {e}")
+            return None
+
+    async def save_dossier(self, company_name: str, dossier_data: Dict[str, Any]):
+        """
+        Saves a dossier to the cache.
+
+        Args:
+            company_name: The name of the company.
+            dossier_data: The dossier data to cache.
+        """
+        try:
+            doc_ref = self.dossier_cache_collection.document(company_name)
+            await doc_ref.set(dossier_data)
+        except Exception as e:
+            print(f"Error saving dossier to cache: {e}")
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Perform health check on Firestore connection.

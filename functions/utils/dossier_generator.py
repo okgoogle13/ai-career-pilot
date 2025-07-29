@@ -6,6 +6,9 @@ Generates a detailed dossier on a hiring organization using AI.
 from typing import Dict, Any
 from genkit import ai
 from genkit.models.googleai import gemini_2_5_pro
+from prompts import construct_dossier_prompt
+from schemas import DossierOutput
+from pydantic import ValidationError
 
 class DossierGenerator:
     """
@@ -16,18 +19,26 @@ class DossierGenerator:
         """Initialize the DossierGenerator."""
         self.model = gemini_2_5_pro
 
-    async def generate_dossier(self, company_name: str) -> Dict[str, Any]:
+    async def generate_dossier(self, company_name: str, firestore_client) -> Dict[str, Any]:
         """
         Perform background research and generate a dossier on the hiring organization.
+        Caches results in Firestore to avoid redundant AI calls.
 
         Args:
             company_name: The name of the company to research.
+            firestore_client: An instance of the FirestoreClient.
 
         Returns:
             A dictionary containing the company dossier.
         """
+        # Check for a cached dossier first
+        cached_dossier = await firestore_client.get_dossier(company_name)
+        if cached_dossier:
+            print(f"Returning cached dossier for {company_name}")
+            return cached_dossier
+
         try:
-            prompt = self._construct_dossier_prompt(company_name)
+            prompt = construct_dossier_prompt(company_name)
 
             response = await ai.generate(
                 model=self.model,
@@ -38,7 +49,13 @@ class DossierGenerator:
                 }
             )
 
-            return self._parse_dossier_response(response.text)
+            dossier_data = self._parse_dossier_response(response.text)
+
+            # Cache the new dossier
+            if "error" not in dossier_data:
+                await firestore_client.save_dossier(company_name, dossier_data)
+
+            return dossier_data
 
         except Exception as e:
             print(f"Error generating dossier for {company_name}: {str(e)}")
@@ -50,37 +67,18 @@ class DossierGenerator:
                 "key_pain_points": "N/A"
             }
 
-    def _construct_dossier_prompt(self, company_name: str) -> str:
-        """Construct the prompt for the dossier generation."""
-
-        prompt = f"""
-You are a world-class business analyst. Your task is to conduct thorough research on a company and generate a detailed "dossier".
-
-**Company:** "{company_name}"
-
-**Instructions:**
-1.  **Organizational Overview:** Analyze the company's culture, vision, and values. What is their mission? What is the work environment like?
-2.  **Communication Style:** Describe the company's typical communication style and tone (e.g., formal, informal, innovative, academic).
-3.  **Strategic Priorities:** Identify the company's key strategic priorities for the current and next fiscal year. Look at annual reports, investor briefings, and recent news.
-4.  **Key Pain Points:** What are the major challenges and pain points the company is currently facing within its industry?
-
-**Output Format:**
-Return the dossier as a JSON object with the following keys:
-- "organizational_overview"
-- "communication_style"
-- "strategic_priorities"
-- "key_pain_points"
-"""
-        return prompt
 
     def _parse_dossier_response(self, response_text: str) -> Dict[str, Any]:
         """Parse the AI's response to extract the structured dossier."""
         import json
         try:
             # The model should return a JSON string.
-            return json.loads(response_text)
-        except json.JSONDecodeError:
+            parsed_data = json.loads(response_text)
+            validated_data = DossierOutput(**parsed_data)
+            return validated_data.dict()
+        except (json.JSONDecodeError, ValidationError) as e:
             # Handle cases where the response is not valid JSON
+            print(f"Error parsing or validating dossier response: {e}")
             return {
                 "error": "Failed to parse dossier response.",
                 "raw_response": response_text

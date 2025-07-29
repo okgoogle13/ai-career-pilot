@@ -18,7 +18,7 @@ from genkit.models.googleai import gemini_2_5_pro
 
 # Firebase imports
 from firebase_functions import https_fn, scheduler_fn
-from firebase_admin import initialize_app, firestore
+from firebase_admin import initialize_app, firestore, auth
 from werkzeug.datastructures import FileStorage
 
 # Local utilities
@@ -30,10 +30,13 @@ from utils.calendar_client import CalendarClient
 from utils.dossier_generator import DossierGenerator
 from utils.ats_analyzer import ATSAnalyzer
 from config import Config
+from prompts import construct_generation_prompt, construct_resume_processing_prompt
+from schemas import GenerationOutput, UserProfile
 
 # Resume parsing libraries
 import docx
 from pypdf import PdfReader
+from pydantic import ValidationError
 
 # Initialize Firebase Admin SDK
 initialize_app()
@@ -117,13 +120,13 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
         company_name = job_data.get("company_name")
         if not company_name:
             raise ValueError("The job data does not contain a 'company_name'. Unable to generate dossier.")
-        dossier = await dossier_generator.generate_dossier(company_name)
+        dossier = await dossier_generator.generate_dossier(company_name, firestore_client)
         
         # Step 5: Load knowledge base content
         kb_content = load_knowledge_base()
         
         # Step 6: Construct structured prompt for Gemini 2.5 Pro
-        prompt = _construct_generation_prompt(
+        prompt = construct_generation_prompt(
             job_data=job_data,
             user_profile=user_profile,
             kb_content=kb_content,
@@ -229,51 +232,6 @@ async def job_scout() -> Dict[str, Any]:
             "status": f"error: {str(e)}"
         }
 
-def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str,
-                               dossier: Dict, theme_id: str, tone_of_voice: str) -> str:
-    """Construct the structured prompt for Gemini 2.5 Pro."""
-    
-    prompt = f"""
-You are an expert Australian community services career consultant with deep knowledge of the sector. Your task is to generate a tailored career document (resume, cover letter, or KSC response) and perform ATS analysis.
-
-JOB ADVERTISEMENT DETAILS:
-Company: {job_data.get('company_name', 'N/A')}
-Position: {job_data.get('job_title', 'N/A')}
-Description: {job_data.get('job_description', 'N/A')}
-Key Responsibilities: {job_data.get('key_responsibilities', 'N/A')}
-Selection Criteria: {job_data.get('selection_criteria', 'N/A')}
-
-COMPANY DOSSIER:
-{json.dumps(dossier, indent=2)}
-
-USER PROFILE:
-{json.dumps(user_profile, indent=2)}
-
-KNOWLEDGE BASE CONTENT:
-{kb_content}
-
-GENERATION REQUIREMENTS:
-- Theme: {theme_id}
-- Tone of Voice: {tone_of_voice}
-- Format: Generate as Markdown with clear structure
-- Use Australian spelling and terminology
-- Apply sector-specific language from the knowledge base
-- Follow the CAR (Context-Action-Result) methodology for achievements
-- Use STAR methodology for KSC responses where applicable
-
-RESPONSE FORMAT:
-Provide your response in the following JSON structure:
-{{
-    "document_type": "resume|cover_letter|ksc_response",
-    "markdown_content": "Full markdown formatted document here",
-    "key_achievements": ["Achievement 1", "Achievement 2", ...],
-    "keywords_used": ["keyword1", "keyword2", ...]
-}}
-
-Generate a professional, tailored document that demonstrates strong alignment with the job requirements using authentic Australian community services language and best practices.
-"""
-    
-    return prompt
 
 def _parse_generation_response(response_text: str) -> Dict[str, Any]:
     """Parse the Gemini response and extract structured content."""
@@ -281,10 +239,11 @@ def _parse_generation_response(response_text: str) -> Dict[str, Any]:
     try:
         # Try to parse as JSON first
         if response_text.strip().startswith('{'):
-            parsed = json.loads(response_text)
+            parsed_data = json.loads(response_text)
+            validated_data = GenerationOutput(**parsed_data)
             return {
-                "markdown": parsed.get("markdown_content", ""),
-                "document_text": parsed.get("markdown_content", "").replace('#', '').replace('*', '')
+                "markdown": validated_data.markdown_content,
+                "document_text": validated_data.markdown_content.replace('#', '').replace('*', '')
             }
         else:
             # Fallback to treating entire response as markdown
@@ -292,7 +251,8 @@ def _parse_generation_response(response_text: str) -> Dict[str, Any]:
                 "markdown": response_text,
                 "document_text": response_text.replace('#', '').replace('*', '')
             }
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValidationError) as e:
+        print(f"Error parsing or validating generation response: {e}")
         return {
             "markdown": response_text,
             "document_text": response_text.replace('#', '').replace('*', '')
@@ -336,17 +296,7 @@ async def process_resume(resume_file: FileStorage) -> Dict[str, Any]:
         resume_text = _extract_text_from_file(resume_file)
 
         # Step 2: Construct prompt for Gemini to parse the resume
-        prompt = f"""
-        You are an expert in parsing resumes. Extract the following information from the provided resume text and return it as a JSON object:
-        - personal_details (name, email, phone, address)
-        - summary (professional summary or objective)
-        - work_experience (list of objects with company, job_title, start_date, end_date, responsibilities)
-        - education (list of objects with institution, degree, graduation_date)
-        - skills (list of strings)
-
-        Resume Text:
-        {resume_text}
-        """
+        prompt = construct_resume_processing_prompt(resume_text)
 
         # Step 3: Generate structured profile using Gemini
         response = await generate(
@@ -356,12 +306,13 @@ async def process_resume(resume_file: FileStorage) -> Dict[str, Any]:
         )
 
         # Step 4: Parse the JSON response
-        structured_profile = json.loads(response.text)
+        structured_profile_data = json.loads(response.text)
+        validated_profile = UserProfile(**structured_profile_data)
 
         # Step 5: Save the structured profile to Firestore
-        await firestore_client.update_user_profile(structured_profile)
+        await firestore_client.update_user_profile(validated_profile.dict())
 
-        return structured_profile
+        return validated_profile.dict()
 
     except Exception as e:
         print(f"Error in process_resume flow: {str(e)}")
@@ -401,22 +352,34 @@ def _extract_text_from_file(file: FileStorage) -> str:
 @https_fn.on_request(cors=True)
 def generate_application_http(req: https_fn.Request) -> https_fn.Response:
     """HTTP endpoint for the generate_application flow."""
-    
+
     if req.method == 'OPTIONS':
-        # Handle preflight requests for CORS
         headers = {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '3600'
         }
         return https_fn.Response("", status=204, headers=headers)
 
     if req.method != 'POST':
         return https_fn.Response("Method not allowed", status=405)
-    
+
+    # Verify Firebase Auth token
+    auth_header = req.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return https_fn.Response("Unauthorized", status=401)
+
+    id_token = auth_header.split('Bearer ')[1]
     try:
-        # Handle multipart form data
+        decoded_token = auth.verify_id_token(id_token)
+        # You can use the decoded_token['uid'] for user-specific logic
+    except auth.InvalidIdTokenError:
+        return https_fn.Response("Invalid token", status=401)
+    except auth.ExpiredIdTokenError:
+        return https_fn.Response("Token expired", status=401)
+
+    try:
         request_data_str = req.form.get('requestData')
         if not request_data_str:
             return https_fn.Response(json.dumps({"error": "Missing requestData"}), status=400, headers={"Content-Type": "application/json"})
@@ -424,7 +387,6 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
         request_data = json.loads(request_data_str)
         resume_file = req.files.get('resume')
 
-        # Basic validation
         if not all(k in request_data for k in ["job_ad_url", "theme_id", "tone_of_voice"]):
             return https_fn.Response(
                 json.dumps({"error": "Missing required fields"}),
@@ -432,7 +394,6 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
                 headers={"Content-Type": "application/json"}
             )
 
-        # Run the async flow
         result = asyncio.run(generate_application(request_data, resume_file))
         
         return https_fn.Response(
@@ -442,12 +403,6 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
         )
         
     except Exception as e:
-        # Log the error for better debugging
-        # from google.cloud import logging
-        # client = logging.Client()
-        # logger = client.logger('http_errors')
-        # logger.log_struct({'message': f"Error in generate_application_http: {str(e)}"}, severity='ERROR')
-
         return https_fn.Response(
             json.dumps({"error": "An unexpected error occurred."}),
             status=500,
