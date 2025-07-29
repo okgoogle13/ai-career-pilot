@@ -128,26 +128,28 @@ def parse_multiple_documents_with_ai(documents_text: str,
         Comprehensive structured profile data
     """
 
-    prompt = f\"\"\"
+    from string import Template
+
+    prompt_template = Template("""
 You are an expert career counselor specializing in Australian Community Services sector roles.
 Parse the following career documents and create a comprehensive profile in JSON format.
 
-DOCUMENT TYPES IDENTIFIED: {', '.join(document_types)}
+DOCUMENT TYPES IDENTIFIED: ${document_types}
 
 DOCUMENTS TEXT:
-{documents_text}
+${documents_text}
 
 Create a comprehensive profile by extracting and consolidating information from all documents.
 Use the following JSON schema:
 
-{{
+{
     "fullName": "string",
     "email": "string",
     "phone": "string",
     "location": "string",
     "personalStatement": "string (synthesize from all documents)",
     "workExperience": [
-        {{
+        {
             "jobTitle": "string",
             "employer": "string",
             "location": "string",
