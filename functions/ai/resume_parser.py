@@ -35,18 +35,7 @@ async def process_resume(resume_file: FileStorage) -> Dict[str, Any]:
         resume_text = _extract_text_from_file(resume_file)
 
         # Step 2: Construct prompt for Gemini to parse the resume
-        prompt = f\"\"\"
-        You are an expert in parsing resumes. Extract the following information from the provided resume text and return it as a JSON object:
-        - personal_details (name, email, phone, address)
-        - summary (professional summary or objective)
-        - work_experience (list of objects with company, job_title, start_date, end_date, responsibilities)
-        - education (list of objects with institution, degree, graduation_date)
-        - skills (list of strings)
-
-        Resume Text:
-        {resume_text}
-        \"\"\"
-
+        prompt = RESUME_PARSING_PROMPT_TEMPLATE.format(resume_text=resume_text)
         # Step 3: Generate structured profile using Gemini
         response = await generate(
             model=gemini_2_5_pro,
