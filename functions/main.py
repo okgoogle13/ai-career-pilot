@@ -27,6 +27,8 @@ from utils.firebase_client import FirestoreClient
 from utils.pdf_generator import PDFGenerator
 from utils.gmail_client import GmailClient
 from utils.calendar_client import CalendarClient
+from utils.dossier_generator import DossierGenerator
+from utils.ats_analyzer import ATSAnalyzer
 from config import Config
 
 # Resume parsing libraries
@@ -48,6 +50,8 @@ job_scraper = JobAdScraper()
 pdf_generator = PDFGenerator()
 gmail_client = GmailClient()
 calendar_client = CalendarClient()
+dossier_generator = DossierGenerator()
+ats_analyzer = ATSAnalyzer()
 
 # Load knowledge base content
 def load_knowledge_base() -> str:
@@ -108,20 +112,27 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
 
         # Step 3: Scrape job advertisement
         job_data = await job_scraper.scrape_job_ad(request["job_ad_url"])
+
+        # Step 4: Generate company dossier
+        company_name = job_data.get("company_name")
+        if not company_name:
+            raise ValueError("The job data does not contain a 'company_name'. Unable to generate dossier.")
+        dossier = await dossier_generator.generate_dossier(company_name)
         
-        # Step 4: Load knowledge base content
+        # Step 5: Load knowledge base content
         kb_content = load_knowledge_base()
         
-        # Step 4: Construct structured prompt for Gemini 2.5 Pro
+        # Step 6: Construct structured prompt for Gemini 2.5 Pro
         prompt = _construct_generation_prompt(
             job_data=job_data,
             user_profile=user_profile,
             kb_content=kb_content,
+            dossier=dossier,
             theme_id=request["theme_id"],
             tone_of_voice=request["tone_of_voice"]
         )
         
-        # Step 5: Generate content using Gemini 2.5 Pro
+        # Step 7: Generate content using Gemini 2.5 Pro
         response = await generate(
             model=gemini_2_5_pro,
             prompt=prompt,
@@ -132,13 +143,13 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
             }
         )
         
-        # Step 6: Parse response and extract components
+        # Step 8: Parse response and extract components
         generated_content = _parse_generation_response(response.text)
         
-        # Step 7: Perform ATS analysis
-        ats_analysis = _perform_ats_analysis(
-            generated_content["document_text"],
-            job_data["job_description"] + " " + job_data.get("selection_criteria", "")
+        # Step 9: Perform ATS analysis
+        ats_analysis = ats_analyzer.analyze(
+            document_text=generated_content["document_text"],
+            job_description=job_data["job_description"] + " " + job_data.get("selection_criteria", "")
         )
         
         return {
@@ -218,8 +229,8 @@ async def job_scout() -> Dict[str, Any]:
             "status": f"error: {str(e)}"
         }
 
-def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str, 
-                               theme_id: str, tone_of_voice: str) -> str:
+def _construct_generation_prompt(job_data: Dict, user_profile: Dict, kb_content: str,
+                               dossier: Dict, theme_id: str, tone_of_voice: str) -> str:
     """Construct the structured prompt for Gemini 2.5 Pro."""
     
     prompt = f"""
@@ -231,6 +242,9 @@ Position: {job_data.get('job_title', 'N/A')}
 Description: {job_data.get('job_description', 'N/A')}
 Key Responsibilities: {job_data.get('key_responsibilities', 'N/A')}
 Selection Criteria: {job_data.get('selection_criteria', 'N/A')}
+
+COMPANY DOSSIER:
+{json.dumps(dossier, indent=2)}
 
 USER PROFILE:
 {json.dumps(user_profile, indent=2)}
@@ -284,51 +298,6 @@ def _parse_generation_response(response_text: str) -> Dict[str, Any]:
             "document_text": response_text.replace('#', '').replace('*', '')
         }
 
-def _perform_ats_analysis(document_text: str, job_requirements: str) -> Dict[str, Any]:
-    """Perform ATS keyword analysis comparing document against job requirements."""
-    
-    import nltk
-    from nltk.corpus import stopwords
-    from nltk.tokenize import word_tokenize
-    import re
-
-    # Download necessary NLTK data
-    try:
-        stopwords.words('english')
-    except:
-        nltk.downloader.download('stopwords')
-        nltk.downloader.download('punkt')
-
-    stop_words = set(stopwords.words('english'))
-
-    def extract_keywords(text: str) -> set:
-        # Remove punctuation and convert to lower case
-        text = re.sub(r'[^\w\s]', '', text.lower())
-        # Tokenize the text
-        tokens = word_tokenize(text)
-        # Filter out stop words and short words
-        return {word for word in tokens if word not in stop_words and len(word) > 2}
-
-    # Extract keywords from job requirements and document
-    job_keywords = extract_keywords(job_requirements)
-    doc_keywords = extract_keywords(document_text)
-
-    # Find matches
-    matched_keywords = list(job_keywords.intersection(doc_keywords))
-    missing_keywords = list(job_keywords - doc_keywords)
-    
-    # Calculate match percentage
-    match_percent = (len(matched_keywords) / len(job_keywords)) * 100 if job_keywords else 0
-    
-    # Generate suggestions
-    suggestions = f"Consider incorporating these missing keywords: {', '.join(missing_keywords[:10])}" if missing_keywords else "Excellent keyword coverage!"
-    
-    return {
-        "keywordMatchPercent": round(match_percent, 1),
-        "matchedKeywords": matched_keywords[:20],  # Limit for response size
-        "missingKeywords": missing_keywords[:20],   # Limit for response size
-        "suggestions": suggestions
-    }
 
 def _extract_job_opportunities(email: Dict) -> List[Dict[str, Any]]:
     """Extract job opportunities from email content."""
