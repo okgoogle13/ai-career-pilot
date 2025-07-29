@@ -52,9 +52,16 @@ class DossierGenerator:
             dossier_data = self._parse_dossier_response(response.text)
 
             # Cache the new dossier
-            if "error" not in dossier_data:
-                await firestore_client.save_dossier(company_name, dossier_data)
-
+            try:
+                # Validate dossier_data using the DossierOutput model
+                validated_dossier = DossierOutput(**dossier_data)
+                await firestore_client.save_dossier(company_name, validated_dossier.dict())
+            except ValidationError as e:
+                print(f"Validation error for dossier data: {e}")
+                return {
+                    "error": "Validation failed for dossier data.",
+                    "details": str(e)
+                }
             return dossier_data
 
         except Exception as e:
