@@ -10,3 +10,5 @@ python-dotenv==1.0.1
 pdfplumber==0.11.7
 python-docx
 nltk==3.8.1
+google-api-python-client
+google-auth-oauthlib
