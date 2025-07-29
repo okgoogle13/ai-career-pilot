@@ -373,7 +373,7 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
     id_token = auth_header.split('Bearer ')[1]
     try:
         decoded_token = auth.verify_id_token(id_token)
-        # You can use the decoded_token['uid'] for user-specific logic
+        user_id = decoded_token['uid']  # Extract the user ID for user-specific logic
     except auth.InvalidIdTokenError:
         return https_fn.Response("Invalid token", status=401)
     except auth.ExpiredIdTokenError:
