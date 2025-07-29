@@ -19,7 +19,7 @@ def parse_resume_with_ai(resume_text: str, model: GenerativeModel) -> Optional[D
         Structured profile data or None if failed
     """
 
-    prompt = f\"\"\"
+    prompt = """
 You are an expert career counselor specializing in Australian Community Services sector roles.
 Parse the following resume and extract structured information in JSON format.
 
