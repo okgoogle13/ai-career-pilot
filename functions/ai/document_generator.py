@@ -14,7 +14,7 @@ from pathlib import Path
 from firebase_admin import firestore
 from ..utils.scraper import JobAdScraper
 from ..utils.firebase_client import FirestoreClient
-from .dossier_generator import DossierGenerator
+from ..utils.dossier_generator import DossierGenerator
 from ..utils.ats_analyzer import ATSAnalyzer
 from ..config import Config
 from .resume_parser import process_resume
