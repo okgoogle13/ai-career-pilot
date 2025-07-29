@@ -319,7 +319,7 @@ class FirestoreClient:
             doc_ref = self.dossier_cache_collection.document(company_name)
             await doc_ref.set(dossier_data)
         except Exception as e:
-            print(f"Error saving dossier to cache: {e}")
+            self.logger.error(f"Error saving dossier to cache: {e}")
 
     async def health_check(self) -> Dict[str, Any]:
         """
