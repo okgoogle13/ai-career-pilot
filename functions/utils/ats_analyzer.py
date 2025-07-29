@@ -15,6 +15,11 @@ class ATSAnalyzer:
 
     def __init__(self):
         """Initialize the ATSAnalyzer."""
+        # Ensure to call `initialize_nltk_resources` before using this class.
+        pass
+
+    def initialize_nltk_resources(self):
+        """Downloads required NLTK resources."""
         try:
             stopwords.words('english')
         except LookupError:
