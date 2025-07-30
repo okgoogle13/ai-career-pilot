@@ -269,7 +269,20 @@ function validateJobUrl() {
   return true;
 }
 
-function isValidUrl(string) { try { new URL(string); return true; } catch (_) { return false; } }
+/**
+ * Validates whether a given string is a valid URL.
+ * @param {string} string - The string to validate as a URL.
+ * @returns {boolean} - Returns true if the string is a valid URL, otherwise false.
+ */
+function isValidUrl(string) {
+  try {
+    new URL(string);
+    return true;
+  } catch (error) {
+    console.error('Invalid URL:', error.message);
+    return false;
+  }
+}
 
 function showUrlError(message) {
   const urlError = document.getElementById('url-error');
