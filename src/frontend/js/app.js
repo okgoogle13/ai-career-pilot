@@ -299,7 +299,12 @@ function handleFileDrop(event) {
   document.getElementById('file-upload')?.classList.remove('dragover');
   if (event.dataTransfer.files.length > 0) handleFileSelection(event.dataTransfer.files[0]);
 }
-function handleFileSelect(event) { if (event.target.files[0]) handleFileSelection(event.target.files[0]); }
+function handleFileSelect(event) {
+  const selectedFile = event.target.files[0];
+  if (selectedFile) {
+    handleFileSelection(selectedFile);
+  }
+}
 
 function handleFileSelection(file) {
   const allowedTypes = ['.pdf', '.doc', '.docx'];
