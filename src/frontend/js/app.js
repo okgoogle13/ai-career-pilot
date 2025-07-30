@@ -36,11 +36,110 @@ const APP_DATA = {
   ],
   // Data from pdf_themes_json.json, to be used for PDF generation
   pdfThemes: {
-    "theme1": { "name": "Professional Classic", "typography": { "allDocuments": { "headings": { "font": "Times New Roman", "sizes": { "nameTitle": "16pt", "sectionHeadersQuestions": "14pt" }, "weight": "bold" }, "bodyText": { "font": "Times New Roman", "size": "11pt", "lineHeight": "1.4" } } } },
-    "theme2": { "name": "Modern Minimalist", "typography": { "allDocuments": { "headings": { "font": "Helvetica, Arial, sans-serif", "sizes": { "nameTitle": "18pt", "sectionHeadersQuestions": "12pt" }, "weight": "bold", "case": "uppercase", "letterSpacing": "1px" }, "bodyText": { "font": "Helvetica, Arial, sans-serif", "size": "10pt", "lineHeight": "1.5" } } } },
-    "theme3": { "name": "Bold Executive", "typography": { "allDocuments": { "headings": { "font": "Georgia, serif", "sizes": { "nameTitle": "22pt", "sectionHeadersQuestions": "16pt" }, "weight": "normal", "color": "#2563eb" }, "bodyText": { "font": "Georgia, serif", "size": "12pt", "lineHeight": "1.4" } } } },
-    "theme4": { "name": "Contemporary Professional", "typography": { "allDocuments": { "headings": { "font": "Calibri, sans-serif", "sizes": { "nameTitle": "17pt", "sectionHeadersQuestions": "13pt" }, "weight": "600" }, "bodyText": { "font": "Calibri, sans-serif", "size": "11pt", "lineHeight": "1.4" } } } },
-    "theme5": { "name": "Vibrant Creative", "typography": { "allDocuments": { "headings": { "font": "Futura, sans-serif", "sizes": { "nameTitle": "20pt", "sectionHeadersQuestions": "14pt" }, "weight": "bold", "color": "#10b981" }, "bodyText": { "font": "Futura, sans-serif", "size": "11pt", "lineHeight": "1.5" } } } }
+    "theme1": {
+      "name": "Professional Classic",
+      "typography": {
+        "allDocuments": {
+          "headings": {
+            "font": "Times New Roman",
+            "sizes": {
+              "nameTitle": "16pt",
+              "sectionHeadersQuestions": "14pt"
+            },
+            "weight": "bold"
+          },
+          "bodyText": {
+            "font": "Times New Roman",
+            "size": "11pt",
+            "lineHeight": "1.4"
+          }
+        }
+      }
+    },
+    "theme2": {
+      "name": "Modern Minimalist",
+      "typography": {
+        "allDocuments": {
+          "headings": {
+            "font": "Helvetica, Arial, sans-serif",
+            "sizes": {
+              "nameTitle": "18pt",
+              "sectionHeadersQuestions": "12pt"
+            },
+            "weight": "bold",
+            "case": "uppercase",
+            "letterSpacing": "1px"
+          },
+          "bodyText": {
+            "font": "Helvetica, Arial, sans-serif",
+            "size": "10pt",
+            "lineHeight": "1.5"
+          }
+        }
+      }
+    },
+    "theme3": {
+      "name": "Bold Executive",
+      "typography": {
+        "allDocuments": {
+          "headings": {
+            "font": "Georgia, serif",
+            "sizes": {
+              "nameTitle": "22pt",
+              "sectionHeadersQuestions": "16pt"
+            },
+            "weight": "normal",
+            "color": "#2563eb"
+          },
+          "bodyText": {
+            "font": "Georgia, serif",
+            "size": "12pt",
+            "lineHeight": "1.4"
+          }
+        }
+      }
+    },
+    "theme4": {
+      "name": "Contemporary Professional",
+      "typography": {
+        "allDocuments": {
+          "headings": {
+            "font": "Calibri, sans-serif",
+            "sizes": {
+              "nameTitle": "17pt",
+              "sectionHeadersQuestions": "13pt"
+            },
+            "weight": "600"
+          },
+          "bodyText": {
+            "font": "Calibri, sans-serif",
+            "size": "11pt",
+            "lineHeight": "1.4"
+          }
+        }
+      }
+    },
+    "theme5": {
+      "name": "Vibrant Creative",
+      "typography": {
+        "allDocuments": {
+          "headings": {
+            "font": "Futura, sans-serif",
+            "sizes": {
+              "nameTitle": "20pt",
+              "sectionHeadersQuestions": "14pt"
+            },
+            "weight": "bold",
+            "color": "#10b981"
+          },
+          "bodyText": {
+            "font": "Futura, sans-serif",
+            "size": "11pt",
+            "lineHeight": "1.5"
+          }
+        }
+      }
+    }
   }
 };
 
