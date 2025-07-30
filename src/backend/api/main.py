@@ -61,7 +61,7 @@ def generate_application_http(req: https_fn.Request) -> https_fn.Response:
             )
 
         # Run the async flow
-        result = asyncio.run(generate_application(request_data, resume_file))
+        result = await generate_application(request_data, resume_file)
 
         return https_fn.Response(
             json.dumps(result),
