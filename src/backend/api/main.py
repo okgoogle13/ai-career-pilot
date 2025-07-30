@@ -1,17 +1,81 @@
 """
-Scheduled job for scouting job opportunities.
+Personal AI Career Co-Pilot - Main Genkit Flows
+Firebase Cloud Functions backend implementing document generation and job scouting.
 """
+
+import json
 import asyncio
 from typing import Dict, Any, List
 
-from firebase_functions import scheduler_fn
+# Firebase imports
+from firebase_functions import https_fn, scheduler_fn
+from firebase_admin import initialize_app
+from werkzeug.datastructures import FileStorage
 
-from ..utils.gmail_client import GmailClient
-from ..utils.calendar_client import CalendarClient
+# Local utilities
+from src.backend.utils.gmail_client import GmailClient
+from src.backend.utils.calendar_client import CalendarClient
+from src.ai.career_advisor_service import generate_application, process_resume
+
+# Initialize Firebase Admin SDK
+initialize_app()
 
 # Initialize utilities
 gmail_client = GmailClient()
 calendar_client = CalendarClient()
+
+
+@https_fn.on_request(cors=True)
+def generate_application_http(req: https_fn.Request) -> https_fn.Response:
+    """HTTP endpoint for the generate_application flow."""
+
+    if req.method == 'OPTIONS':
+        # Handle preflight requests for CORS
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return https_fn.Response("", status=204, headers=headers)
+
+    if req.method != 'POST':
+        return https_fn.Response("Method not allowed", status=405)
+
+    try:
+        # Handle multipart form data
+        request_data_str = req.form.get('requestData')
+        if not request_data_str:
+            return https_fn.Response(json.dumps({"error": "Missing requestData"}), status=400,
+                                      headers={"Content-Type": "application/json"})
+
+        request_data = json.loads(request_data_str)
+        resume_file = req.files.get('resume')
+
+        # Basic validation
+        if not all(k in request_data for k in ["job_ad_url", "theme_id", "tone_of_voice"]):
+            return https_fn.Response(
+                json.dumps({"error": "Missing required fields"}),
+                status=400,
+                headers={"Content-Type": "application/json"}
+            )
+
+        # Run the async flow
+        result = asyncio.run(generate_application(request_data, resume_file))
+
+        return https_fn.Response(
+            json.dumps(result),
+            status=200,
+            headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+        )
+
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({"error": "An unexpected error occurred."}),
+            status=500,
+            headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+        )
+
 
 @scheduler_fn.on_schedule(schedule="0 */1 * * *")  # Run every hour
 def job_scout_scheduled(event: scheduler_fn.ScheduledEvent) -> None:
@@ -25,6 +89,7 @@ def job_scout_scheduled(event: scheduler_fn.ScheduledEvent) -> None:
 
     except Exception as e:
         print(f"Job scout error: {str(e)}")
+
 
 async def job_scout() -> Dict[str, Any]:
     """
@@ -82,16 +147,12 @@ async def job_scout() -> Dict[str, Any]:
 
     except Exception as e:
         print(f"Error in job_scout flow: {str(e)}")
-        # Log the error for better debugging
-        # from google.cloud import logging
-        # client = logging.Client()
-        # logger = client.logger('job_scout_errors')
-        # logger.log_struct({'message': f"Error in job_scout flow: {str(e)}"}, severity='ERROR')
         return {
             "processedEmails": 0,
             "eventsCreated": 0,
             "status": f"error: {str(e)}"
         }
+
 
 def _extract_job_opportunities(email: Dict) -> List[Dict[str, Any]]:
     """Extract job opportunities from email content."""

@@ -2,7 +2,7 @@
   "name": "personal-ai-career-copilot",
   "version": "1.0.0",
   "description": "AI-powered career document generator for Australian Community Services professionals",
-  "main": "public/index.html",
+  "main": "src/backend/api/main.py",
   "scripts": {
     "dev": "firebase emulators:start",
     "build": "npm run build:css && npm run build:js && npm run optimize",
@@ -21,7 +21,7 @@
     "lint:css": "stylelint public/css/**/*.css --fix",
     "format": "prettier --write \"public/**/*.{js,css,html}\"",
     "deploy": "firebase deploy",
-    "deploy:functions": "firebase deploy --only functions",
+    "deploy:functions": "firebase deploy --only functions:generate_application_http,functions:job_scout_scheduled",
     "deploy:hosting": "firebase deploy --only hosting",
     "serve": "firebase serve",
     "logs": "firebase functions:log",
@@ -54,7 +54,6 @@
   "homepage": "https://personal-ai-career-copilot.web.app",
   "dependencies": {},
   "devDependencies": {
-    "firebase": "^10.7.0",
     "firebase-tools": "^12.9.1",
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
@@ -116,7 +115,7 @@
       ]
     },
     "functions": {
-      "source": "functions",
+      "source": "src",
       "runtime": "python311"
     }
   },
