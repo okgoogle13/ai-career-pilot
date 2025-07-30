@@ -5,6 +5,14 @@ node_modules/
 .firebase/
 *.log
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
 # Misc
 .DS_Store
 .env
