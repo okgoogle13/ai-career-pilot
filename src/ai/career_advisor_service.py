@@ -64,7 +64,9 @@ async def generate_application(request: Dict[str, Any], resume_file: Optional[Fi
         job_data = await job_scraper.scrape_job_ad(request["job_ad_url"])
         company_name = job_data.get("company_name")
         if not company_name:
-            raise ValueError("The job data does not contain a 'company_name'. Unable to generate dossier.")
+            raise ValueError(
+                "We couldn't find the company name in the job posting. Please check the job ad URL and try again."
+            )
         dossier = await dossier_service.generate_dossier(company_name)
         kb_content = load_knowledge_base()
 
