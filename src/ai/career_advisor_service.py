@@ -26,30 +26,34 @@ dossier_service = DossierService()
 ats_analyzer = ATSAnalyzer()
 
 
+_cached_kb_content: Optional[str] = None
+
 def load_knowledge_base() -> str:
     """Load all knowledge base artifacts into a single context string."""
-    kb_dir = Path(__file__).parent.parent.parent / "kb"
-    kb_content = ""
+    global _cached_kb_content
+    if _cached_kb_content is None:
+        kb_dir = Path(__file__).parent.parent.parent / "kb"
+        kb_content = ""
 
-    # Load all knowledge base files
-    kb_files = [
-        "pdf_themes_json.json",
-        "australian_sector_glossary.md",
-        "skill_taxonomy_community_services.md",
-        "Gold-Standard-Knowledge-Artifact-1.md",
-        "action_verbs_community_services.md"
-    ]
+        # Load all knowledge base files
+        kb_files = [
+            "pdf_themes_json.json",
+            "australian_sector_glossary.md",
+            "skill_taxonomy_community_services.md",
+            "Gold-Standard-Knowledge-Artifact-1.md",
+            "action_verbs_community_services.md"
+        ]
 
-    for filename in kb_files:
-        file_path = kb_dir / filename
-        if file_path.exists():
-            with open(file_path, 'r', encoding='utf-8') as f:
-                kb_content += f"\n\n=== {filename} ===\n"
-                kb_content += f.read()
+        for filename in kb_files:
+            file_path = kb_dir / filename
+            if file_path.exists():
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    kb_content += f"\n\n=== {filename} ===\n"
+                    kb_content += f.read()
 
-    return kb_content
+        _cached_kb_content = kb_content
 
-
+    return _cached_kb_content
 @flow
 async def generate_application(request: Dict[str, Any], resume_file: Optional[FileStorage] = None) -> Dict[str, Any]:
     """
