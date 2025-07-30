@@ -116,7 +116,13 @@ function populateToneOptions() {
   });
 }
 
-function toggleTheme() { appState.isDarkMode ? disableDarkMode() : enableDarkMode(); }
+function toggleTheme() {
+  if (appState.isDarkMode) {
+    disableDarkMode();
+  } else {
+    enableDarkMode();
+  }
+}
 
 function enableDarkMode() {
   document.documentElement.setAttribute('data-color-scheme', 'dark');
