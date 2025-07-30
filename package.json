@@ -2,7 +2,6 @@
   "name": "personal-ai-career-copilot",
   "version": "1.0.0",
   "description": "AI-powered career document generator for Australian Community Services professionals",
-  "main": "src/backend/api/main.py",
   "scripts": {
     "dev": "firebase emulators:start",
     "build": "npm run build:css && npm run build:js && npm run optimize",
