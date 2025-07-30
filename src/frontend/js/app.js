@@ -186,8 +186,15 @@ function clearUrlError() {
   document.getElementById('job-url')?.style.setProperty('border-color', '');
 }
 
-function handleDragOver(event) { event.preventDefault(); document.getElementById('file-upload')?.classList.add('dragover'); }
-function handleDragLeave(event) { event.preventDefault(); document.getElementById('file-upload')?.classList.remove('dragover'); }
+function handleDragOver(event) {
+  event.preventDefault();
+  document.getElementById('file-upload')?.classList.add('dragover');
+}
+
+function handleDragLeave(event) {
+  event.preventDefault();
+  document.getElementById('file-upload')?.classList.remove('dragover');
+}
 function handleFileDrop(event) {
   event.preventDefault();
   document.getElementById('file-upload')?.classList.remove('dragover');
